@@ -3,9 +3,13 @@
 """
 from .base import BaseStrategy, StockSelectionResult
 from .industry_momentum import IndustryMomentumStrategy
+from .multi_factor import MultiFactorStrategy
+from .industry_leader import IndustryLeaderStrategy
 
 __all__ = [
     'BaseStrategy',
     'StockSelectionResult',
-    'IndustryMomentumStrategy'
+    'IndustryMomentumStrategy',
+    'MultiFactorStrategy',
+    'IndustryLeaderStrategy'
 ]
