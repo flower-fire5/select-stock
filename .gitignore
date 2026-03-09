@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# 数据文件
+data/*.csv
+data/*.parquet
+*.db
+*.sqlite
+
+# 配置文件（敏感信息）
+config/*.env
+config/secrets.json
+*.key
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 日志
+*.log
+logs/
+
+# 回测结果
+results/
+output/
