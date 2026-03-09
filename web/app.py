@@ -18,6 +18,7 @@ from config.settings import INITIAL_CAPITAL
 from strategies import IndustryMomentumStrategy, MultiFactorStrategy, IndustryLeaderStrategy
 from backtest.engine import BacktestEngine, BacktestResult
 from backtest.report import ReportGenerator
+from utils.data_loader import DataLoader
 
 
 # 页面配置
@@ -38,8 +39,11 @@ st.sidebar.header("⚙️ 配置")
 # 策略选择
 strategy_choice = st.sidebar.selectbox(
     "选择策略",
-    ["行业动量策略", "多因子选股策略", "行业龙头股策略"]
+    ["多因子选股策略", "行业龙头股策略", "行业动量策略"]
 )
+
+# 选股数量
+top_n = st.sidebar.slider("选股数量", 3, 10, 5)
 
 # 回测参数
 st.sidebar.header("📊 回测参数")
@@ -58,53 +62,53 @@ max_position = st.sidebar.slider("单股最大仓位 (%)", 10, 50, 30)
 tab1, tab2, tab3, tab4 = st.tabs(["🎯 选股", "📈 回测", "📋 持仓", "ℹ️ 关于"])
 
 
-# 模拟股票数据
-SIMULATED_STOCKS = {
-    '000001': {'name': '平安银行', 'pe': 5.2, 'pb': 0.6, 'roe': 11.5, 'market_cap': 800e8},
-    '600036': {'name': '招商银行', 'pe': 6.8, 'pb': 0.9, 'roe': 15.2, 'market_cap': 1200e8},
-    '000858': {'name': '五粮液', 'pe': 18.5, 'pb': 4.2, 'roe': 22.3, 'market_cap': 6500e8},
-    '600519': {'name': '贵州茅台', 'pe': 28.5, 'pb': 8.5, 'roe': 30.2, 'market_cap': 22000e8},
-    '000651': {'name': '格力电器', 'pe': 8.2, 'pb': 2.1, 'roe': 18.5, 'market_cap': 3500e8},
-    '601318': {'name': '中国平安', 'pe': 9.5, 'pb': 1.2, 'roe': 16.8, 'market_cap': 9000e8},
-    '600030': {'name': '中信证券', 'pe': 12.3, 'pb': 1.5, 'roe': 10.2, 'market_cap': 2800e8},
-    '002415': {'name': '海康威视', 'pe': 15.8, 'pb': 3.8, 'roe': 20.5, 'market_cap': 3200e8},
-    '300750': {'name': '宁德时代', 'pe': 35.2, 'pb': 6.5, 'roe': 18.2, 'market_cap': 8500e8},
-    '601888': {'name': '中国中免', 'pe': 25.6, 'pb': 5.2, 'roe': 22.8, 'market_cap': 4200e8},
-}
-
-# 模拟行业数据
-SIMULATED_INDUSTRY_DATA = pd.DataFrame([
-    {'industry': '银行', 'close': 1000, 'pct_change': 2.5},
-    {'industry': '白酒', 'close': 1500, 'pct_change': 5.2},
-    {'industry': '家电', 'close': 800, 'pct_change': 1.8},
-    {'industry': '保险', 'close': 900, 'pct_change': 3.1},
-    {'industry': '券商', 'close': 600, 'pct_change': 4.5},
-])
-
-
 # 选项卡 1: 选股
 with tab1:
     st.header("🎯 智能选股")
-    st.info("💡 使用模拟数据演示，实际使用请运行 `python scripts/weekly_run.py`")
+    st.info("💡 使用 AkShare 获取真实 A 股数据，首次运行可能需要几分钟")
     
     if st.button("运行选股", type="primary"):
-        with st.spinner("正在选股..."):
+        with st.spinner("正在获取数据并选股..."):
             try:
+                # 初始化数据加载器
+                loader = DataLoader()
+                
+                # 获取股票列表（简化：前 50 只）
+                with st.spinner("获取股票列表..."):
+                    stock_list = loader.get_stock_list().head(50)
+                
+                # 获取基本信息
+                with st.spinner("获取股票基本信息..."):
+                    basic_info = {}
+                    progress_bar = st.progress(0)
+                    for i, (_, row) in enumerate(stock_list.iterrows()):
+                        code = row['code']
+                        try:
+                            info = loader.get_stock_basic_info(code)
+                            if info and info.get('pe', 0) > 0:
+                                basic_info[code] = info
+                        except:
+                            pass
+                        progress_bar.progress((i + 1) / len(stock_list))
+                
+                st.write(f"✅ 获取到 {len(basic_info)} 只股票的基本信息")
+                
                 # 选择策略
                 if strategy_choice == "行业动量策略":
                     strategy = IndustryMomentumStrategy()
                 elif strategy_choice == "多因子选股策略":
                     strategy = MultiFactorStrategy()
-                    strategy.set_params({'top_n': 5})
+                    strategy.set_params({'top_n': top_n})
                 else:
                     strategy = IndustryLeaderStrategy()
+                    strategy.set_params({'top_n': top_n})
                 
                 # 选股
-                result = strategy.select(
-                    stock_data=pd.DataFrame(),
-                    industry_data=SIMULATED_INDUSTRY_DATA,
-                    basic_info=SIMULATED_STOCKS
-                )
+                with st.spinner("执行选股策略..."):
+                    result = strategy.select(
+                        stock_data=pd.DataFrame(),
+                        basic_info=basic_info
+                    )
                 
                 if result.stocks:
                     st.success(f"✅ 选中 {len(result.stocks)} 只股票！")
@@ -125,10 +129,10 @@ with tab1:
                             st.subheader(f"{stock['code']} - {stock['name']}")
                             metrics = stock.get('metrics', {})
                             col1, col2, col3, col4 = st.columns(4)
-                            col1.metric("ROE", f"{metrics.get('roe', 0):.1f}%")
-                            col2.metric("PE", f"{metrics.get('pe', 0):.1f}")
-                            col3.metric("PB", f"{metrics.get('pb', 0):.1f}")
-                            col4.metric("市值", f"{metrics.get('market_cap', 0)/100e8:.0f}亿")
+                            col1.metric("ROE", f"{metrics.get('roe', 0):.1f}%" if metrics.get('roe') else "N/A")
+                            col2.metric("PE", f"{metrics.get('pe', 0):.1f}" if metrics.get('pe') else "N/A")
+                            col3.metric("PB", f"{metrics.get('pb', 0):.1f}" if metrics.get('pb') else "N/A")
+                            col4.metric("市值", f"{metrics.get('market_cap', 0)/100e8:.0f}亿" if metrics.get('market_cap') else "N/A")
                             st.write(f"**选股理由**: {stock['reason']}")
                     
                     # 下载按钮
@@ -144,12 +148,13 @@ with tab1:
             
             except Exception as e:
                 st.error(f"❌ 选股失败：{e}")
+                st.code(str(e))
 
 
 # 选项卡 2: 回测
 with tab2:
     st.header("📈 策略回测")
-    st.info("💡 使用模拟数据演示回测流程")
+    st.info("💡 使用模拟数据演示回测流程，完整回测请运行 `python backtest/run.py`")
     
     if st.button("运行回测", type="primary"):
         with st.spinner("正在回测..."):
@@ -170,9 +175,8 @@ with tab2:
                 # 模拟权益曲线
                 days = 365
                 dates = pd.date_range(start=start_date, periods=days, freq='D')
-                # 生成上升趋势的权益曲线
-                base_return = 0.0003  # 日均收益
-                volatility = 0.015  # 波动率
+                base_return = 0.0003
+                volatility = 0.015
                 returns = np.random.normal(base_return, volatility, days)
                 equity_values = initial_capital * np.cumprod(1 + returns)
                 
@@ -219,7 +223,6 @@ with tab2:
 with tab3:
     st.header("📋 模拟持仓")
     
-    # 模拟持仓数据
     holdings_data = {
         '代码': ['000001', '600036', '600519'],
         '名称': ['平安银行', '招商银行', '贵州茅台'],
@@ -232,7 +235,6 @@ with tab3:
     holdings_df = pd.DataFrame(holdings_data)
     st.dataframe(holdings_df, use_container_width=True)
     
-    # 汇总
     total_value = 13.2 * 1000 + 37.5 * 500 + 1820.0 * 100
     st.metric("持仓总市值", f"¥{total_value:,.0f}")
 
