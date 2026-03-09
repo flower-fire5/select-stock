@@ -1,16 +1,8 @@
 """
 龙头股识别模块
-
-龙头股标准：
-1. 市值行业前 3
-2. 营收/净利润行业前 3
-3. 机构持仓比例高
-4. 行业指数权重股
-5. 近 1 年有券商"买入"评级
-6. 品牌知名度/技术壁垒高
 """
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import Dict, List
 from loguru import logger
 
 
@@ -139,74 +131,3 @@ class LeaderStockIdentifier:
         """
         leaders = self.identify(stocks, industry, basic_info)
         return leaders[:top_n]
-
-
-# 行业龙头股策略（结合行业动量 + 龙头股识别）
-class IndustryLeaderStrategy(BaseStrategy):
-    """行业龙头股策略"""
-    
-    def __init__(self):
-        super().__init__(
-            name="行业龙头股策略",
-            description="选择强势行业中的龙头股"
-        )
-        self.leader_identifier = LeaderStockIdentifier()
-        self.top_industries = 5  # 前 5 个行业
-        self.leaders_per_industry = 2  # 每个行业选 2 只龙头
-    
-    def get_params(self) -> Dict:
-        return {
-            'top_industries': self.top_industries,
-            'leaders_per_industry': self.leaders_per_industry
-        }
-    
-    def select(self,
-               stock_data: pd.DataFrame,
-               industry_data: pd.DataFrame = None,
-               basic_info: Dict = None,
-               date: str = None) -> StockSelectionResult:
-        """选股逻辑"""
-        from .base import StockSelectionResult
-        
-        result = StockSelectionResult()
-        result.reason = "行业龙头股策略 - 强势行业 + 龙头股"
-        
-        # TODO: 实现完整的行业分析 + 龙头股选择逻辑
-        # 这里先返回简化版本
-        
-        if basic_info is None:
-            return result
-        
-        # 简化：直接从基本 info 中选市值最大的几只股票
-        stocks = []
-        for code, info in basic_info.items():
-            stocks.append({
-                'code': code,
-                'name': info.get('name', ''),
-                'industry': info.get('industry', '')
-            })
-        
-        # 识别龙头股
-        leaders = self.leader_identifier.get_top_leaders(
-            stocks=stocks,
-            basic_info=basic_info,
-            top_n=self.leaders_per_industry * self.top_industries
-        )
-        
-        for leader in leaders:
-            result.add_stock(
-                code=leader['code'],
-                name=leader.get('name', ''),
-                score=leader['leader_score'],
-                reason=f"龙头股得分：{leader['leader_score']:.1f}",
-                metrics={'leader_score': leader['leader_score']}
-            )
-        
-        result.industry = "多行业"
-        result.score = sum(l['leader_score'] for l in leaders) / len(leaders) if leaders else 0
-        
-        return result
-
-
-# 导入基类（避免循环引用）
-from .base import BaseStrategy

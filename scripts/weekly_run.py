@@ -72,14 +72,14 @@ def run_weekly_selection():
     stock_list = loader.get_stock_list()
     logger.info(f"股票总数：{len(stock_list)}")
     
-    # 获取基本信息
-    logger.info("获取股票基本信息...")
+    # 获取基本信息（简化测试：使用前 20 只股票）
+    logger.info("获取股票基本信息（测试模式：前 20 只）...")
     basic_info = {}
-    for _, row in stock_list.head(100).iterrows():
+    for _, row in stock_list.head(20).iterrows():
         code = row['code']
         try:
             info = loader.get_stock_basic_info(code)
-            if info and info.get('pe', 0) > 0:  # 过滤 PE 为负的
+            if info and info.get('pe', 0) > 0:
                 basic_info[code] = info
         except Exception as e:
             logger.debug(f"获取 {code} 信息失败：{e}")

@@ -17,6 +17,27 @@
 
 ---
 
+## [0.3.0] - 2026-03-10
+
+### Added
+- 十次迭代全部完成
+- 多因子选股策略 (strategies/multi_factor.py)
+- 行业龙头股策略 (strategies/industry_leader.py)
+- 龙头股识别模块 (utils/stock_screener.py)
+- 风险控制模块 (utils/risk_manager.py)
+- Web 界面 (web/app.py) - Streamlit
+- 每周自动选股脚本 (scripts/weekly_run.py)
+- 单元测试 (tests/test_strategies.py)
+- 完整 README 文档
+
+### Changed
+- 更新 README 为完整版
+- 完善策略包接口
+
+### Fixed
+
+---
+
 ## [0.2.0] - 2026-03-10
 
 ### Added
